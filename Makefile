@@ -1,15 +1,23 @@
-TH_GEN_IDX=/usr/share/mythes/th_gen_idx.pl
+TH_GEN_IDX = ./th_gen_idx.pl
+LATEST := $(shell @curl https://mirror.accum.se/mirror/wikimedia.org/dumps/iswiktionary/ | grep -oP '[0-9]{8}' | tail -n1)
 
 .PHONY: all clean check check-rules check-thes packages
 
 all: dicts/is.dic dicts/is.aff dicts/th_is.dat dicts/th_is.idx
 
+dependencies:
+	apt-get install bzip2 gawk bash ed coreutils make wget hunspell libmythes-dev git python3.12
+	python -m ensurepip --upgrade
+	locale-gen is_IS.UTF-8
+	LC_ALL=is_IS.utf8
+	pip install mwparserfromhell tqdm
+
 clean:
 	rm -f dicts/is.aff dicts/is.dic dicts/th_is.dat dicts/th_is.idx dicts/is.oxt dicts/is.xpi
 	rm -f wiktionary.dic wiktionary.aff wordlist.diff
 	rm -f huntest.aff huntest.dic
-	#  rm -f ??wiktionary-latest-pages-articles.xml.bz2
-	rm -f ??wiktionary-latest-pages-articles.xml ??wiktionary-latest-pages-articles.xml.texts
+	rm -f iswiktionary-$(LATEST)-pages-articles.xml.bz2
+	rm -f iswiktionary-$(LATEST)-pages-articles.xml iswiktionary-$(LATEST)-pages-articles.xml.texts
 	rm -rf libreoffice-tmp/ mozilla-tmp/
 	rm -rf dicts/
 
@@ -44,69 +52,43 @@ check-thes: dicts/th_is.dat
 	! grep "<.*>" $< # no html-like tags
 	! grep "&lt;.*&gt;" $< # no html-like tags (encoded)
 	@echo "Thesaurus tests passed."
+
 check-morph: dicts/is.dic dicts/is.aff
-	@echo "Testing morphology..."
+	@echo "  morphology..."
 	@test -z "`hunspell -m -d dicts/is < langs/is/test.good | diff -q langs/is/test.morph -`" || { echo "Morphology test failed: `hunspell -m -d dicts/is < langs/is/test.good | diff langs/is/test.morph -`"; exit 1; };
 	@echo "Morphology tests passed."
 
-packages: dicts/is.oxt dicts/is.xpi dicts/SentenceExceptList.xml
-
-# LibreOffice extension
-dicts/is.oxt: %.oxt: %.aff %.dic dicts/th_is.dat dicts/th_is.idx \
-		packages/libreoffice/META-INF/manifest.xml \
-		packages/libreoffice/description.xml \
-		packages/libreoffice/dictionaries.xcu \
-		packages/copyright
-	rm -rf $@ libreoffice-tmp
-	cp -rf packages/libreoffice libreoffice-tmp
-	cp packages/copyright libreoffice-tmp/license.txt
-	cd libreoffice-tmp && sed -i 's/TODAYPLACEHOLDER/'`date +%Y.%m.%d`'/g' description.xml && zip -r ../$@ *
-	zip $@ dicts/is.dic dicts/is.aff dicts/th_is.dat dicts/th_is.idx
-
-# LibreOffice autocorrect blocklist - not the end of a sentence
-dicts/SentenceExceptList.xml: iswiktionary-latest-pages-articles.xml
-	echo "<?xml version=\"1.0\" encoding=\"utf-8\"?>"  > $@
-	echo "<block-list:block-list xmlns:block-list=\"http://openoffice.org/2001/block-list\">"  >> $@
-	grep -C 3 "{{-is-}}" iswiktionary-latest-pages-articles.xml | grep -C 2 "{{-is-skammstöfun-}}" | grep "'''[^ ]\+\.'''" | grep -o "[^']\+" | xargs printf "  <block-list:block block-list:abbreviated-name=\"%s\"/>\n" | sort >> $@
-	echo "</block-list:block-list>" >> $@
-
-# Mozilla extension
-dicts/is.xpi: %.xpi: %.aff %.dic \
-		packages/mozilla/install.js \
-		packages/mozilla/install.rdf
-	rm -rf $@ mozilla-tmp
-	cp -rf packages/mozilla mozilla-tmp
-	cd mozilla-tmp && sed -i 's/TODAYPLACEHOLDER/'`date +%Y.%m.%d`'/g' install.js && sed -i 's/TODAYPLACEHOLDER/'`date +%Y.%m.%d`'/g' install.rdf && mkdir dictionaries && cp ../dicts/is.dic ../dicts/is.aff dictionaries/ && zip -r ../$@ *
-
-dicts/is.aff: makedict.sh makedict.py iswiktionary-latest-pages-articles.xml.texts iswiktionary-latest-pages-articles.xml \
+dicts/is.aff: makedict.sh makedict.py iswiktionary-$(LATEST)-pages-articles.xml.texts iswiktionary-$(LATEST)-pages-articles.xml \
 		$(wildcard langs/is/common-aff.d/*) $(wildcard "langs/is/rules/*/*")
 	./$< is
 
-dicts/is.dic: makedict.sh makedict.py iswiktionary-latest-pages-articles.xml.texts iswiktionary-latest-pages-articles.xml \
+dicts/is.dic: makedict.sh makedict.py iswiktionary-$(LATEST)-pages-articles.xml.texts iswiktionary-$(LATEST)-pages-articles.xml \
                 $(wildcard langs/is/common-aff.d/*) $(wildcard "langs/is/rules/*/*")
 	./$< is
 
-dicts/th_%.dat: makethes.awk %wiktionary-latest-pages-articles.xml sortthes.py
-	LC_ALL=is_IS.utf8 gawk -F " " -f $< <iswiktionary-latest-pages-articles.xml | LC_ALL=is_IS.utf8 ./sortthes.py > $@
+dicts/th_%.dat: makethes.awk %wiktionary-$(LATEST)-pages-articles.xml sortthes.py
+	LC_ALL=is_IS.utf8 gawk -F " " -f $< <iswiktionary-$(LATEST)-pages-articles.xml | LC_ALL=is_IS.utf8 ./sortthes.py > $@
 
 %.idx: %.dat
 	LC_ALL=is_IS.utf8 ${TH_GEN_IDX} -o $@ < $<
 
-iswiktionary-latest-pages-articles.xml.bz2:
-	wget http://dumps.wikimedia.org/iswiktionary/latest/$@ -O $@
+iswiktionary-$(LATEST)-pages-articles.xml.bz2:
+	curl 'https://saimei.ftp.acc.umu.se/mirror/wikimedia.org/dumps/iswiktionary/$(LATEST)/$@' -o $@
 	touch $@
 
-iswiktionary-latest-pages-articles.xml: iswiktionary-latest-pages-articles.xml.bz2
+iswiktionary-$(LATEST)-pages-articles.xml: iswiktionary-$(LATEST)-pages-articles.xml.bz2
+	@echo "=== Unzipping ==="
 	bunzip2 -kf $<
 	touch $@
 
-iswiktionary-latest-pages-articles.xml.texts: iswiktionary-latest-pages-articles.xml
-	tr -d "\r\n" < iswiktionary-latest-pages-articles.xml | grep -o "{{[^.|{}]*|[^-.}][^ }]*[}|][^}]*" | sed "s/mynd=.*//g" | sed "s/lo.nf.et.ó=.*//g" | sort | uniq > $@
+iswiktionary-$(LATEST)-pages-articles.xml.texts: iswiktionary-$(LATEST)-pages-articles.xml
+	@echo "=== Extracting texts ==="
+	tr -d "\r\n" < iswiktionary-$(LATEST)-pages-articles.xml | grep -o "{{[^.|{}]*|[^-.}][^ }]*[}|][^}]*" | sed "s/mynd=.*//g" | sed "s/lo.nf.et.ó=.*//g" | sort | uniq > $@
 
 # Performance test target: perf.txt
 randwordlist:
 	tr -cd '[:alpha:]' < /dev/urandom | fold -w12 | head -n 100 > randwordlist
-time=/usr/bin/time -o perf.txt -f "%E real\t%U user\t%S sys\t%M mem\t%C" --append
+	time=/usr/bin/time -o perf.txt -f "%E real\t%U user\t%S sys\t%M mem\t%C" --append
 perf.txt: dicts/is.dic dicts/is.aff randwordlist
 	hunspell -vv > perf.txt
 	${time} hunspell -d dicts/is -a langs/is/wordlist > /dev/null
