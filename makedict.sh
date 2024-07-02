@@ -35,7 +35,7 @@ if [ "$1" != "" ] && [ "$2" != "" ]; then
   mkdir -p dicts
   rm -rf wiktionary.dic wiktionary.aff
    # This is where the magic happens
-  ./makedict.py "${1}"wiktionary-${2}-pages-articles.xml wiktionary.dic wiktionary.aff
+  ./makedict.py "${1}"wiktionary-"${2}"-pages-articles.xml wiktionary.dic wiktionary.aff
   echo -e '0r langs/is/common-aff.d/22_fallbeyging_kk.aff\nw' | ed -s wiktionary.aff
   echo -e '0r langs/is/common-aff.d/10_header.aff\nw' | ed -s wiktionary.aff
 
@@ -54,21 +54,21 @@ if [ "$1" != "" ] && [ "$2" != "" ]; then
     fi
 
     if [ -e "$i/print-dic-entry" ]; then
-        grep -o "^{{$RULE|[^}]\+" "${1}"wiktionary-${2}-pages-articles.xml.texts | grep -o "|.*" | "./$i/print-dic-entry" $FLAG >> wiktionary.dic
+        grep -o "^{{$RULE|[^}]\+" "${1}"wiktionary-"${2}"-pages-articles.xml.texts | grep -o "|.*" | "./$i/print-dic-entry" $FLAG >> wiktionary.dic
     else
-        grep -o "^{{$RULE|[^}]\+" "${1}"wiktionary-${2}-pages-articles.xml.texts | grep -o "|.*" | gawk -F "|" '{printf "%s%s%s\n", $1, $2, $3"/"'"$FLAG"'}' >> wiktionary.dic
+        grep -o "^{{$RULE|[^}]\+" "${1}"wiktionary-"${2}"-pages-articles.xml.texts | grep -o "|.*" | gawk -F "|" '{printf "%s%s%s\n", $1, $2, $3"/"'"$FLAG"'}' >> wiktionary.dic
     fi
   done
 
   {
     #extracting abbreviations
-    grep -C 3 "{{-is-}}" iswiktionary-${2}-pages-articles.xml | grep -C 2 "{{-is-skammstöfun-}}" | grep "'''" | grep -o "[^']*"
+    grep -C 3 "{{-is-}}" iswiktionary-"${2}"-pages-articles.xml | grep -C 2 "{{-is-skammstöfun-}}" | grep "'''" | grep -o "[^']*"
     #extracting adverbs
-    grep -C 3 "{{-is-}}" iswiktionary-${2}-pages-articles.xml | grep -C 2 "{{-is-atviksorð-}}" | grep "'''[^ ]*'''$" | grep -o "[^']*" | xargs printf "%s\tpo:ao\n"
+    grep -C 3 "{{-is-}}" iswiktionary-"${2}"-pages-articles.xml | grep -C 2 "{{-is-atviksorð-}}" | grep "'''[^ ]*'''$" | grep -o "[^']*" | xargs printf "%s\tpo:ao\n"
     #extracting prepositions
-    grep -C 1 "{{-is-forsetning-}}" iswiktionary-${2}-pages-articles.xml | grep -o "'''[^ ]*'''" | grep -o "[^']*" | xargs printf "%s\tpo:fs\n"
+    grep -C 1 "{{-is-forsetning-}}" iswiktionary-"${2}"-pages-articles.xml | grep -o "'''[^ ]*'''" | grep -o "[^']*" | xargs printf "%s\tpo:fs\n"
     #extracting conjunctions
-    grep -C 1 "{{-is-samtenging-}}" iswiktionary-${2}-pages-articles.xml | grep -v fornt | tr -d "[]" | grep -o "'''[^ .]*'''" | grep -o "[^']*" | xargs printf "%s\tpo:st\n"
+    grep -C 1 "{{-is-samtenging-}}" iswiktionary-"${2}"-pages-articles.xml | grep -v fornt | tr -d "[]" | grep -o "'''[^ .]*'''" | grep -o "[^']*" | xargs printf "%s\tpo:st\n"
   } >> wiktionary.dic
 
   ./makealias.py  wiktionary dicts/is
