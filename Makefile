@@ -16,7 +16,7 @@ dependencies:
 	python -m ensurepip --upgrade
 	locale-gen is_IS.UTF-8
 	LC_ALL=is_IS.utf8
-	pip install mwparserfromhell tqdm
+	pip install -r requirements.txt
 
 clean:
 	rm -f dicts/is.aff dicts/is.dic dicts/th_is.dat dicts/th_is.idx dicts/is.oxt dicts/is.xpi
