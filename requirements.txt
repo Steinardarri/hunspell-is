@@ -1,0 +1,2 @@
+mwparserfromhell==0.6.6
+tqdm==4.66.4

@@ -11,9 +11,8 @@ for line in sys.stdin:
 	terms[line] = line
 	splitted = line.split('|')
 	for i in range(0, int(splitted[1])):
-		l = sys.stdin.readline()
-		terms[line] += l
+		nl = sys.stdin.readline()
+		terms[line] += nl
 
 for k in sorted(terms.keys()):
 	sys.stdout.write(terms[k])
-

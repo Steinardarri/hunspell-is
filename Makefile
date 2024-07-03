@@ -1,5 +1,11 @@
 TH_GEN_IDX = ./th_gen_idx.pl
-LATEST := $(shell @curl https://mirror.accum.se/mirror/wikimedia.org/dumps/iswiktionary/ | grep -oP '[0-9]{8}' | tail -n1)
+
+## Choose either latest article dump of mirror or manually get latest ##
+
+# LATEST := $(shell curl 'https://mirror.accum.se/mirror/wikimedia.org/dumps/iswiktionary/' | grep -oP '[0-9]{8}' | tail -n1)
+
+# latest link: https://dumps.wikimedia.org/iswiktionary/latest/iswiktionary-latest-pages-articles.xml.bz2
+LATEST = latest
 
 .PHONY: all clean check check-rules check-thes packages
 
@@ -16,8 +22,7 @@ clean:
 	rm -f dicts/is.aff dicts/is.dic dicts/th_is.dat dicts/th_is.idx dicts/is.oxt dicts/is.xpi
 	rm -f wiktionary.dic wiktionary.aff wordlist.diff
 	rm -f huntest.aff huntest.dic
-	rm -f iswiktionary-$(LATEST)-pages-articles.xml.bz2
-	rm -f iswiktionary-$(LATEST)-pages-articles.xml iswiktionary-$(LATEST)-pages-articles.xml.texts
+	rm -f iswiktionary-*-pages-articles.*
 	rm -rf libreoffice-tmp/ mozilla-tmp/
 	rm -rf dicts/
 
@@ -60,19 +65,22 @@ check-morph: dicts/is.dic dicts/is.aff
 
 dicts/is.aff: makedict.sh makedict.py iswiktionary-$(LATEST)-pages-articles.xml.texts iswiktionary-$(LATEST)-pages-articles.xml \
 		$(wildcard langs/is/common-aff.d/*) $(wildcard "langs/is/rules/*/*")
-	./$< is
+	@echo "=== .aff ==="
+	./$< is $(LATEST)
 
 dicts/is.dic: makedict.sh makedict.py iswiktionary-$(LATEST)-pages-articles.xml.texts iswiktionary-$(LATEST)-pages-articles.xml \
-                $(wildcard langs/is/common-aff.d/*) $(wildcard "langs/is/rules/*/*")
-	./$< is
+    $(wildcard langs/is/common-aff.d/*) $(wildcard "langs/is/rules/*/*")
+	@echo "=== .dic ==="
+	./$< is $(LATEST)
 
 dicts/th_%.dat: makethes.awk %wiktionary-$(LATEST)-pages-articles.xml sortthes.py
 	LC_ALL=is_IS.utf8 gawk -F " " -f $< <iswiktionary-$(LATEST)-pages-articles.xml | LC_ALL=is_IS.utf8 ./sortthes.py > $@
 
 %.idx: %.dat
-	LC_ALL=is_IS.utf8 ${TH_GEN_IDX} -o $@ < $<
+	LC_ALL=is_IS.utf8 cat $< | ${TH_GEN_IDX} > $@
 
 iswiktionary-$(LATEST)-pages-articles.xml.bz2:
+	@echo "=== Downloading iswiktionary-$(LATEST)-pages-articles.xml.bz2 ==="
 	curl 'https://saimei.ftp.acc.umu.se/mirror/wikimedia.org/dumps/iswiktionary/$(LATEST)/$@' -o $@
 	touch $@
 
